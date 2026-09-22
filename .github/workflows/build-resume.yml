@@ -1,0 +1,72 @@
+name: Build resume
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**.tex'
+      - '**.sty'
+      - .github/workflows/build-resume.yml
+  workflow_dispatch:
+
+# Allow the build to publish to Pages via OIDC.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never let two Pages deployments race; queue instead.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compile resume.tex
+        uses: xu-cheng/latex-action@v3
+        with:
+          root_file: resume.tex
+          latexmk_use_xelatex: false
+          # scheme-full carries sourcesans, titlesec, moresize and the rest
+          # of TLCresume.sty's dependencies with no per-package setup.
+          texlive_version: 2024
+
+      - name: Stage the site
+        run: |
+          mkdir -p public
+          cp resume.pdf public/resume.pdf
+          # Serve the PDF at the site root as well, so the bare Pages URL works.
+          cat > public/index.html <<'HTML'
+          <!doctype html>
+          <meta charset="utf-8">
+          <title>Michail Spiridonov - Resume</title>
+          <meta http-equiv="refresh" content="0; url=resume.pdf">
+          <link rel="canonical" href="resume.pdf">
+          <p><a href="resume.pdf">Open the resume (PDF)</a></p>
+          HTML
+
+      # Keeps a copy on the run itself, so a failed deploy still yields a PDF.
+      - name: Upload PDF as a build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: resume-pdf
+          path: resume.pdf
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,12 @@
+# Build output - published to GitHub Pages by .github/workflows/build-resume.yml
+resume.pdf
+public/
+
+# LaTeX intermediates
+*.aux
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.synctex.gz
+*.toc
